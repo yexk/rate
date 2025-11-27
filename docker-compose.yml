@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  rate-notifier:
+    build: .
+    container_name: rate-notifier
+    restart: unless-stopped
+    environment:
+      - LARK_WEBHOOK_URL=${LARK_WEBHOOK_URL}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs:/root/logs
+    # 如果需要暴露端口（虽然不需要）
+    # ports:
+    #   - "8080:8080"
