@@ -165,39 +165,37 @@ func startScheduler() {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	
-	// 立即执行一次
-	log.Println("开始执行汇率通知任务...")
-	runRateNotification(nil)
-	
 	// 每小时执行一次
 	var previousRates []WiseRateResponse
 	for t := range ticker.C {
 		log.Printf("执行汇率通知任务 - %s", t.Format("2006-01-02 15:04:05"))
-		runRateNotification(previousRates)
-		previousRates, _ = getWiseRates() // 保存当前汇率作为下次比较的基准
+		
+		// 获取当前汇率
+		currentRates, err := getWiseRates()
+		if err != nil {
+			log.Printf("获取汇率失败: %v", err)
+			continue
+		}
+		
+		// 发送通知，使用上一次的汇率作为比较基准
+		webhookURL := os.Getenv("LARK_WEBHOOK_URL")
+		if webhookURL != "" {
+			err = sendLarkNotification(webhookURL, currentRates, previousRates)
+			if err != nil {
+				log.Printf("发送通知失败: %v", err)
+			} else {
+				log.Println("汇率通知发送成功")
+			}
+		} else {
+			log.Println("错误: 请设置环境变量 LARK_WEBHOOK_URL")
+		}
+		
+		// 保存当前汇率作为下次比较的基准
+		previousRates = currentRates
 	}
 }
 
-func runRateNotification(previousRates []WiseRateResponse) {
-	webhookURL := os.Getenv("LARK_WEBHOOK_URL")
-	if webhookURL == "" {
-		log.Println("错误: 请设置环境变量 LARK_WEBHOOK_URL")
-		return
-	}
 
-	rates, err := getWiseRates()
-	if err != nil {
-		log.Printf("获取汇率失败: %v", err)
-		return
-	}
-
-	err = sendLarkNotification(webhookURL, rates, previousRates)
-	if err != nil {
-		log.Printf("发送通知失败: %v", err)
-		return
-	}
-	log.Println("汇率通知发送成功")
-}
 
 func main() {
 	// 加载 .env 文件
